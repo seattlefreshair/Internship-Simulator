@@ -1,89 +1,324 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interview Simulator</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 30px;
             text-align: center;
         }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 0;
+            min-height: 600px;
+        }
+
+        .sidebar {
+            background: #f8f9fa;
+            padding: 30px;
+            border-right: 1px solid #e9ecef;
+        }
+
+        .chat-area {
+            display: flex;
+            flex-direction: column;
+            height: 600px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            background: #fafafa;
+        }
+
         .message {
-            font-size: 24px;
-            margin: 20px 0;
-            padding: 20px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-        button {
-            padding: 10px 20px;
-            margin: 10px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        /* .dropbtn {
-            background-color: #04AA6D;
-            color: white;
-            padding: 16px;
-            font-size: 16px;
-            border: none;
-            cursor: pointer;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
         }
 
-        .dropdown {
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 15px 20px;
+            border-radius: 20px;
             position: relative;
-            display: inline-block;
+            word-wrap: break-word;
         }
 
-        .dropdown-content {
+        .message.question .message-content {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-bottom-left-radius: 5px;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin: 0 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            font-size: 14px;
+        }
+
+        .message.question .message-avatar {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+        }
+
+        .chat-input {
+            padding: 20px 30px;
+            background: white;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .chat-input input:focus {
+            border-color: #4CAF50;
+        }
+
+        .chat-input button {
+            padding: 15px 25px;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: transform 0.2s ease;
+        }
+
+        .chat-input button:hover {
+            transform: translateY(-2px);
+        }
+
+        .chat-input button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .controls {
+            margin-bottom: 30px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .control-group select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.3s ease;
+        }
+
+        .control-group select:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+        }
+
+        .typing-indicator {
             display: none;
-            position: absolute;
-            right: 0;
-            background-color: #f9f9f9;
-            min-width: 160px;
-            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-            z-index: 1;
+            padding: 15px 20px;
+            background: #e9ecef;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            color: #666;
+            font-style: italic;
         }
 
-        .dropdown-content a {
-            color: black;
-            padding: 12px 16px;
-            text-decoration: none;
+        .typing-indicator.show {
             display: block;
         }
 
-        .dropdown-content a:hover {background-color: #f1f1f1;}
-        .dropdown:hover .dropdown-content {display: block;}
-        .dropdown:hover .dropbtn {background-color: #3e8e41;} */
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                border-right: none;
+                border-bottom: 1px solid #e9ecef;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
     </style>
 </head>
 <body>
-    <h1>Interview Simulator</h1>
-    <div class="message" id="message">What is a personal weakness of yours?</div>
-    <div class="dropdown" style="float:left;">
-  <!-- <button class="dropbtn">Job Title</button>
-  <div class="dropdown-content" style="left:0;">
-    <a href="#">Software Engineer</a>
-    <a href="#">Data Scientist</a>
-    <a href="#">Data Engineer</a>
-    <a href="#">ML Scientist</a>
-  </div> -->
-</div>
-    <button onclick="getQuestion()">Generate Question</button>
+    <div class="container">
+        <div class="header">
+            <h1>Interview Simulator</h1>
+            <p>Practice your interview skills with AI-powered questions</p>
+            <div id="aiStatus" style="margin-top: 10px; font-size: 0.9rem; opacity: 0.8;">
+                <span id="aiStatusText">Checking AI availability...</span>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <div class="controls">
+                    <div class="control-group">
+                        <label for="subject">Subject:</label>
+                        <select id="subject" onchange="populateTopics()">
+                            <option value="">Select subject</option>
+                        </select>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label for="topic">Topic:</label>
+                        <select id="topic" onchange="populateChapters()">
+                            <option value="">Please select subject first</option>
+                        </select>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label for="chapter">Chapter:</label>
+                        <select id="chapter">
+                            <option value="">Please select topic first</option>
+                        </select>
+                    </div>
+                    
+                    <button class="btn" onclick="getQuestion()">Generate Question</button>
+                    <button class="btn btn-secondary" onclick="clearChat()">Clear Chat</button>
+                </div>
+            </div>
+            
+            <div class="chat-area">
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message question">
+                        <div class="message-avatar">AI</div>
+                        <div class="message-content">
+                            Welcome to the Interview Simulator! Click "Generate Question" to get started, or use the filters to choose a specific topic.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="typing-indicator" id="typingIndicator">
+                    AI is typing...
+                </div>
+                
+                <div class="chat-input">
+                    <input type="text" id="userInput" placeholder="Type your answer here..." onkeypress="handleKeyPress(event)">
+                    <button onclick="sendMessage()" id="sendButton">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
+        let currentQuestion = "";
+        let chatHistory = [];
+
         // Populate dropdowns when page loads
         window.onload = function() {
             populateSubjects();
+            checkAIStatus();
         };
 
         async function populateSubjects() {
@@ -91,7 +326,7 @@
                 const response = await fetch('/get-subjects');
                 const data = await response.json();
                 const subjectSelect = document.getElementById('subject');
-                subjectSelect.innerHTML = '<option value="" selected="selected">Select subject</option>';
+                subjectSelect.innerHTML = '<option value="">Select subject</option>';
                 
                 data.subjects.forEach(subject => {
                     const option = document.createElement('option');
@@ -109,9 +344,8 @@
             const topicSelect = document.getElementById('topic');
             const chapterSelect = document.getElementById('chapter');
             
-            // Reset topic and chapter dropdowns
-            topicSelect.innerHTML = '<option value="" selected="selected">Please select subject first</option>';
-            chapterSelect.innerHTML = '<option value="" selected="selected">Please select topic first</option>';
+            topicSelect.innerHTML = '<option value="">Please select subject first</option>';
+            chapterSelect.innerHTML = '<option value="">Please select topic first</option>';
             
             if (!subject) return;
             
@@ -119,7 +353,7 @@
                 const response = await fetch(`/get-topics/${encodeURIComponent(subject)}`);
                 const data = await response.json();
                 
-                topicSelect.innerHTML = '<option value="" selected="selected">Select topic</option>';
+                topicSelect.innerHTML = '<option value="">Select topic</option>';
                 data.topics.forEach(topic => {
                     const option = document.createElement('option');
                     option.value = topic;
@@ -136,8 +370,7 @@
             const topic = document.getElementById('topic').value;
             const chapterSelect = document.getElementById('chapter');
             
-            // Reset chapter dropdown
-            chapterSelect.innerHTML = '<option value="" selected="selected">Please select topic first</option>';
+            chapterSelect.innerHTML = '<option value="">Please select topic first</option>';
             
             if (!subject || !topic) return;
             
@@ -145,7 +378,7 @@
                 const response = await fetch(`/get-chapters/${encodeURIComponent(subject)}/${encodeURIComponent(topic)}`);
                 const data = await response.json();
                 
-                chapterSelect.innerHTML = '<option value="" selected="selected">Select chapter</option>';
+                chapterSelect.innerHTML = '<option value="">Select chapter</option>';
                 data.chapters.forEach(chapter => {
                     const option = document.createElement('option');
                     option.value = chapter;
@@ -157,26 +390,15 @@
             }
         }
 
+        // TODO: what is async mean?
         async function getQuestion() {
-            try {
-                const response = await fetch('/get-question', {
-                    method: 'POST'
-                });
-                const data = await response.json();
-                document.getElementById('message').textContent = data.message;
-            } catch (error) {
-                console.error('Error:', error);
-            }
-        }
-
-        async function submitForm(event) {
-            event.preventDefault();
-            
-            const subject = document.getElementById('subject').value;
-            const topic = document.getElementById('topic').value;
-            const chapter = document.getElementById('chapter').value;
+            showTypingIndicator();
             
             try {
+                const subject = document.getElementById('subject').value;
+                const topic = document.getElementById('topic').value;
+                const chapter = document.getElementById('chapter').value;
+                
                 const response = await fetch('/get-question', {
                     method: 'POST',
                     headers: {
@@ -189,27 +411,165 @@
                     })
                 });
                 const data = await response.json();
-                document.getElementById('message').textContent = data.message;
+                
+                hideTypingIndicator();
+                currentQuestion = data.message;
+                addMessage(data.message, 'question');
+                
+                // Enable chat input
+                document.getElementById('userInput').disabled = false;
+                document.getElementById('sendButton').disabled = false;
+                document.getElementById('userInput').focus();
+                
             } catch (error) {
+                hideTypingIndicator();
                 console.error('Error:', error);
+                addMessage('Sorry, there was an error generating the question. Please try again.', 'question');
             }
         }
-    </script>
 
-    <form name="form1" id="form1" onsubmit="submitForm(event)">
-        Subjects: <select name="subject" id="subject" onchange="populateTopics()">
-            <option value="" selected="selected">Select subject</option>
-        </select>
-        <br><br>
-        Topics: <select name="topic" id="topic" onchange="populateChapters()">
-            <option value="" selected="selected">Please select subject first</option>
-        </select>
-        <br><br>
-        Chapters: <select name="chapter" id="chapter">
-            <option value="" selected="selected">Please select topic first</option>
-        </select>
-        <br><br>
-        <input type="submit" value="Submit">  
-    </form>
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const message = input.value.trim();
+            
+            if (message && currentQuestion) {
+                addMessage(message, 'user');
+                input.value = '';
+                
+                // Store in chat history
+                chatHistory.push({
+                    question: currentQuestion,
+                    answer: message,
+                    timestamp: new Date().toISOString()
+                });
+                
+                // Submit response and get follow-up question
+                showTypingIndicator();
+                try {
+                    const subject = document.getElementById('subject').value;
+                    const topic = document.getElementById('topic').value;
+                    const chapter = document.getElementById('chapter').value;
+                    
+                    // TODO: what is await mean?
+                    // TODO: what is submit-response mean?
+                    const response = await fetch('/submit-response', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            question: currentQuestion,
+                            answer: message,
+                            subject: subject,
+                            topic: topic,
+                            chapter: chapter
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    hideTypingIndicator();
+                    
+                    if (data.follow_up) {
+                        currentQuestion = data.follow_up;
+                        addMessage(data.follow_up, 'question');
+                    } else {
+                        // Fallback to generating a new question
+                        setTimeout(() => {
+                            getQuestion();
+                        }, 500);
+                    }
+                    
+                } catch (error) {
+                    hideTypingIndicator();
+                    console.error('Error submitting response:', error);
+                    // Fallback to generating a new question
+                    setTimeout(() => {
+                        getQuestion();
+                    }, 500);
+                }
+            }
+        }
+
+        function addMessage(content, type) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = type === 'question' ? 'AI' : 'You';
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            messageContent.textContent = content;
+            
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(messageContent);
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        function showTypingIndicator() {
+            document.getElementById('typingIndicator').classList.add('show');
+        }
+
+        function hideTypingIndicator() {
+            document.getElementById('typingIndicator').classList.remove('show');
+        }
+
+        async function checkAIStatus() {
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+                const statusText = document.getElementById('aiStatusText');
+                
+                if (data.ai_available) {
+                    if (data.ai_service === 'gemini') {
+                        statusText.textContent = '🤖 Google Gemini AI powered';
+                        statusText.style.color = '#4CAF50';
+                    } else if (data.ai_service === 'openai') {
+                        statusText.textContent = '🤖 OpenAI GPT powered';
+                        statusText.style.color = '#4CAF50';
+                    } else {
+                        statusText.textContent = '🤖 AI-powered questions available';
+                        statusText.style.color = '#4CAF50';
+                    }
+                } else {
+                    statusText.textContent = '📚 Using local question templates';
+                    statusText.style.color = '#FF9800';
+                }
+            } catch (error) {
+                const statusText = document.getElementById('aiStatusText');
+                statusText.textContent = '📚 Using local question templates';
+                statusText.style.color = '#FF9800';
+            }
+        }
+
+        function clearChat() {
+            document.getElementById('chatMessages').innerHTML = `
+                <div class="message question">
+                    <div class="message-avatar">AI</div>
+                    <div class="message-content">
+                        Welcome to the Interview Simulator! Click "Generate Question" to get started, or use the filters to choose a specific topic.
+                    </div>
+                </div>
+            `;
+            chatHistory = [];
+            currentQuestion = "";
+            document.getElementById('userInput').disabled = true;
+            document.getElementById('sendButton').disabled = true;
+        }
+
+        // Initialize chat input as disabled until first question
+        document.getElementById('userInput').disabled = true;
+        document.getElementById('sendButton').disabled = true;
+    </script>
 </body>
 </html> 

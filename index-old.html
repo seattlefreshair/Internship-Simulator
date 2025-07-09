@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Interview Simulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .message {
+            font-size: 24px;
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        /* .dropbtn {
+            background-color: #04AA6D;
+            color: white;
+            padding: 16px;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            background-color: #f9f9f9;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+        }
+
+        .dropdown-content a {
+            color: black;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+        }
+
+        .dropdown-content a:hover {background-color: #f1f1f1;}
+        .dropdown:hover .dropdown-content {display: block;}
+        .dropdown:hover .dropbtn {background-color: #3e8e41;} */
+    </style>
+</head>
+<body>
+    <h1>Interview Simulator</h1>
+    <div class="message" id="message">What is a personal weakness of yours?</div>
+    <div class="dropdown" style="float:left;">
+  <!-- <button class="dropbtn">Job Title</button>
+  <div class="dropdown-content" style="left:0;">
+    <a href="#">Software Engineer</a>
+    <a href="#">Data Scientist</a>
+    <a href="#">Data Engineer</a>
+    <a href="#">ML Scientist</a>
+  </div> -->
+</div>
+    <button onclick="getQuestion()">Generate Question</button>
+
+    <script>
+        // Populate dropdowns when page loads
+        window.onload = function() {
+            populateSubjects();
+        };
+
+        async function populateSubjects() {
+            try {
+                const response = await fetch('/get-subjects');
+                const data = await response.json();
+                const subjectSelect = document.getElementById('subject');
+                subjectSelect.innerHTML = '<option value="" selected="selected">Select subject</option>';
+                
+                data.subjects.forEach(subject => {
+                    const option = document.createElement('option');
+                    option.value = subject;
+                    option.textContent = subject;
+                    subjectSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading subjects:', error);
+            }
+        }
+
+        async function populateTopics() {
+            const subject = document.getElementById('subject').value;
+            const topicSelect = document.getElementById('topic');
+            const chapterSelect = document.getElementById('chapter');
+            
+            // Reset topic and chapter dropdowns
+            topicSelect.innerHTML = '<option value="" selected="selected">Please select subject first</option>';
+            chapterSelect.innerHTML = '<option value="" selected="selected">Please select topic first</option>';
+            
+            if (!subject) return;
+            
+            try {
+                const response = await fetch(`/get-topics/${encodeURIComponent(subject)}`);
+                const data = await response.json();
+                
+                topicSelect.innerHTML = '<option value="" selected="selected">Select topic</option>';
+                data.topics.forEach(topic => {
+                    const option = document.createElement('option');
+                    option.value = topic;
+                    option.textContent = topic;
+                    topicSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading topics:', error);
+            }
+        }
+
+        async function populateChapters() {
+            const subject = document.getElementById('subject').value;
+            const topic = document.getElementById('topic').value;
+            const chapterSelect = document.getElementById('chapter');
+            
+            // Reset chapter dropdown
+            chapterSelect.innerHTML = '<option value="" selected="selected">Please select topic first</option>';
+            
+            if (!subject || !topic) return;
+            
+            try {
+                const response = await fetch(`/get-chapters/${encodeURIComponent(subject)}/${encodeURIComponent(topic)}`);
+                const data = await response.json();
+                
+                chapterSelect.innerHTML = '<option value="" selected="selected">Select chapter</option>';
+                data.chapters.forEach(chapter => {
+                    const option = document.createElement('option');
+                    option.value = chapter;
+                    option.textContent = chapter;
+                    chapterSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading chapters:', error);
+            }
+        }
+
+        async function getQuestion() {
+            try {
+                const response = await fetch('/get-question', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                document.getElementById('message').textContent = data.message;
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function submitForm(event) {
+            event.preventDefault();
+            
+            const subject = document.getElementById('subject').value;
+            const topic = document.getElementById('topic').value;
+            const chapter = document.getElementById('chapter').value;
+            
+            try {
+                const response = await fetch('/get-question', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        subject: subject,
+                        topic: topic,
+                        chapter: chapter
+                    })
+                });
+                const data = await response.json();
+                document.getElementById('message').textContent = data.message;
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+    </script>
+
+    <form name="form1" id="form1" onsubmit="submitForm(event)">
+        Subjects: <select name="subject" id="subject" onchange="populateTopics()">
+            <option value="" selected="selected">Select subject</option>
+        </select>
+        <br><br>
+        Topics: <select name="topic" id="topic" onchange="populateChapters()">
+            <option value="" selected="selected">Please select subject first</option>
+        </select>
+        <br><br>
+        Chapters: <select name="chapter" id="chapter">
+            <option value="" selected="selected">Please select topic first</option>
+        </select>
+        <br><br>
+        <input type="submit" value="Submit">  
+    </form>
+</body>
+</html> 
