@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, UploadFile, File, Form
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -10,6 +10,9 @@ import json
 from datetime import datetime
 import os
 from dotenv import load_dotenv
+import PyPDF2
+import io
+import docx
 
 # Load environment variables
 load_dotenv()
@@ -147,6 +150,11 @@ class ChatResponse(BaseModel):
     topic: Optional[str] = ""
     chapter: Optional[str] = ""
 
+class ResumeChatResponse(BaseModel):
+    question: str
+    answer: str
+    resume_data: Optional[str] = ""
+
 class ChatHistory(BaseModel):
     session_id: str
     responses: List[ChatResponse]
@@ -154,10 +162,45 @@ class ChatHistory(BaseModel):
 
 # In-memory storage for chat sessions (in production, use a database)
 chat_sessions = {}
+resume_chat_sessions = {}
+
+def extract_text_from_pdf(pdf_content: bytes) -> str:
+    """Extract text from PDF content"""
+    try:
+        pdf_reader = PyPDF2.PdfReader(io.BytesIO(pdf_content))
+        text = ""
+        for page in pdf_reader.pages:
+            text += page.extract_text() + "\n"
+        return text.strip()
+    except Exception as e:
+        print(f"Error extracting text from PDF: {e}")
+        return ""
+
+def extract_text_from_docx(docx_content: bytes) -> str:
+    """Extract text from DOCX content"""
+    try:
+        doc = docx.Document(io.BytesIO(docx_content))
+        text = ""
+        for paragraph in doc.paragraphs:
+            text += paragraph.text + "\n"
+        return text.strip()
+    except Exception as e:
+        print(f"Error extracting text from DOCX: {e}")
+        return ""
+
+def extract_text_from_file(file_content: bytes, file_type: str) -> str:
+    """Extract text from uploaded file based on type"""
+    if file_type == "application/pdf":
+        return extract_text_from_pdf(file_content)
+    elif file_type in ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/msword"]:
+        return extract_text_from_docx(file_content)
+    elif file_type == "text/plain":
+        return file_content.decode('utf-8', errors='ignore')
+    else:
+        return ""
 
 async def generate_ai_question(subject: str = "", topic: str = "", chapter: str = "") -> str:
     """Generate a unique question using AI (Gemini preferred, OpenAI fallback)"""
-    # TODO: how AI_AVAILABLE is set
     if not AI_AVAILABLE:
         return generate_local_question(subject, topic, chapter)
     
@@ -206,6 +249,140 @@ async def generate_ai_question(subject: str = "", topic: str = "", chapter: str 
     # Fallback to local templates
     return generate_local_question(subject, topic, chapter)
 
+async def generate_resume_ai_question(resume_text: str) -> str:
+    """Generate a unique question based on resume content using AI"""
+    if not AI_AVAILABLE:
+        return generate_resume_local_question(resume_text)
+    
+    # Truncate resume text if too long (AI models have token limits)
+    if len(resume_text) > 2000:
+        resume_text = resume_text[:2000] + "..."
+    
+    prompt = f"""Based on this resume content, generate a personalized interview question that relates to the candidate's experience, skills, or background:
+
+Resume Content:
+{resume_text}
+
+Generate a specific, relevant interview question that would help assess the candidate's qualifications and experience. The question should be tailored to their background and encourage detailed discussion."""
+
+    # Try Gemini first (preferred)
+    if GEMINI_AVAILABLE and gemini_client:
+        try:
+            system_prompt = "You are an expert technical interviewer. Generate personalized, relevant questions based on a candidate's resume that encourage them to elaborate on their experience and demonstrate their skills. Keep responses concise and focused."
+            
+            response = gemini_client.generate_content([
+                system_prompt,
+                prompt
+            ])
+            
+            if response.text:
+                return response.text.strip()
+        except Exception as e:
+            print(f"Error generating Gemini resume question: {e}")
+    
+    # Fallback to OpenAI
+    if OPENAI_AVAILABLE and openai_client:
+        try:
+            response = openai_client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are an expert technical interviewer. Generate personalized, relevant questions based on a candidate's resume that encourage them to elaborate on their experience and demonstrate their skills."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=150,
+                temperature=0.8
+            )
+            
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"Error generating OpenAI resume question: {e}")
+    
+    # Fallback to local templates
+    return generate_resume_local_question(resume_text)
+
+def generate_resume_local_question(resume_text: str) -> str:
+    """Generate a question using local templates when AI is not available for resume-based questions"""
+    
+    # Extract some basic information from resume text
+    resume_lower = resume_text.lower()
+    
+    # Determine focus areas based on resume content
+    focus_areas = []
+    
+    if any(tech in resume_lower for tech in ['python', 'java', 'javascript', 'c++', 'c#', 'go', 'rust']):
+        focus_areas.append('programming')
+    
+    if any(tech in resume_lower for tech in ['machine learning', 'ai', 'data science', 'statistics', 'analytics']):
+        focus_areas.append('data science')
+    
+    if any(tech in resume_lower for tech in ['product', 'management', 'agile', 'scrum', 'user experience']):
+        focus_areas.append('product management')
+    
+    if any(tech in resume_lower for tech in ['system design', 'architecture', 'scalability', 'microservices']):
+        focus_areas.append('system design')
+    
+    if any(tech in resume_lower for tech in ['database', 'sql', 'nosql', 'mongodb', 'postgresql']):
+        focus_areas.append('databases')
+    
+    # If no specific focus areas found, use general questions
+    if not focus_areas:
+        focus_areas = ['general']
+    
+    # Generate question based on focus areas
+    focus_area = random.choice(focus_areas)
+    
+    resume_questions = {
+        'programming': [
+            "Can you walk me through a challenging programming problem you've solved recently?",
+            "What programming languages are you most comfortable with, and how did you learn them?",
+            "Describe a time when you had to debug a complex issue. What was your approach?",
+            "How do you stay updated with the latest programming trends and technologies?",
+            "What's your preferred development environment and why?"
+        ],
+        'data science': [
+            "Can you describe a data analysis project you've worked on? What were the key insights?",
+            "How do you approach feature engineering in machine learning projects?",
+            "What metrics do you use to evaluate model performance?",
+            "Describe a time when you had to explain complex data findings to non-technical stakeholders.",
+            "How do you handle missing or noisy data in your analysis?"
+        ],
+        'product management': [
+            "Can you walk me through a product feature you've launched from conception to release?",
+            "How do you prioritize features in a product roadmap?",
+            "Describe a time when you had to make a difficult product decision with limited data.",
+            "How do you gather and incorporate user feedback into product decisions?",
+            "What's your approach to defining and measuring product success metrics?"
+        ],
+        'system design': [
+            "Can you describe a system you've designed or worked on? What were the key challenges?",
+            "How do you approach designing a scalable architecture?",
+            "What factors do you consider when choosing between different technologies?",
+            "Describe a time when you had to optimize system performance. What was your approach?",
+            "How do you ensure system reliability and handle failure scenarios?"
+        ],
+        'databases': [
+            "Can you describe a database design you've worked on? What were the key considerations?",
+            "How do you approach database optimization and performance tuning?",
+            "What's your experience with different types of databases (SQL vs NoSQL)?",
+            "Describe a time when you had to migrate or scale a database system.",
+            "How do you ensure data integrity and handle data quality issues?"
+        ],
+        'general': [
+            "Can you tell me about a challenging project you've worked on recently?",
+            "What are your strongest technical skills, and how did you develop them?",
+            "Describe a time when you had to learn a new technology quickly.",
+            "How do you approach problem-solving when faced with an unfamiliar challenge?",
+            "What are your career goals and how does this role align with them?",
+            "Can you walk me through your experience and how it relates to this position?",
+            "What are some of your recent achievements that you're most proud of?",
+            "How do you handle working under pressure or tight deadlines?",
+            "Describe a time when you had to collaborate with a difficult team member.",
+            "What motivates you in your work and how do you stay productive?"
+        ]
+    }
+    
+    return random.choice(resume_questions[focus_area])
+
 def generate_local_question(subject: str = "", topic: str = "", chapter: str = "") -> str:
     """Generate a question using local templates when AI is not available"""
     
@@ -251,12 +428,32 @@ async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/get-question")
-# TODO: what is async mean?
 async def get_question(request: QuestionRequest):
     """Generate a unique question based on the provided parameters"""
-    # TODO: what is await mean?
     question = await generate_ai_question(request.subject, request.topic, request.chapter)
     return {"message": question}
+
+@app.post("/generate-resume-question")
+async def generate_resume_question(resume: UploadFile = File(...)):
+    """Generate a question based on uploaded resume content"""
+    try:
+        # Read file content
+        file_content = await resume.read()
+        
+        # Extract text from file
+        resume_text = extract_text_from_file(file_content, resume.content_type)
+        
+        if not resume_text:
+            return {"success": False, "error": "Could not extract text from the uploaded file"}
+        
+        # Generate question based on resume content
+        question = await generate_resume_ai_question(resume_text)
+        
+        return {"success": True, "question": question}
+        
+    except Exception as e:
+        print(f"Error processing resume: {e}")
+        return {"success": False, "error": "Error processing resume file"}
 
 @app.post("/submit-response")
 async def submit_response(response: ChatResponse):
@@ -271,6 +468,26 @@ async def submit_response(response: ChatResponse):
     
     # Generate a follow-up question based on context
     follow_up = await generate_follow_up_question(response)
+    
+    return {
+        "status": "success",
+        "follow_up": follow_up,
+        "session_id": session_id
+    }
+
+@app.post("/submit-resume-response")
+async def submit_resume_response(response: ResumeChatResponse):
+    """Handle user responses for resume-based questions and generate follow-up questions"""
+    
+    # Store the response (in a real app, save to database)
+    session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if session_id not in resume_chat_sessions:
+        resume_chat_sessions[session_id] = []
+    
+    resume_chat_sessions[session_id].append(response)
+    
+    # Generate a follow-up question based on context
+    follow_up = await generate_resume_follow_up_question(response)
     
     return {
         "status": "success",
@@ -357,6 +574,85 @@ async def generate_follow_up_question(response: ChatResponse) -> str:
     
     return random.choice(follow_up_questions)
 
+async def generate_resume_follow_up_question(response: ResumeChatResponse) -> str:
+    """Generate a contextual follow-up question for resume-based responses"""
+    
+    if not AI_AVAILABLE:
+        # Fallback to local follow-up questions
+        follow_up_questions = [
+            "Can you provide more specific details about that experience?",
+            "What were the key challenges you faced in that situation?",
+            "How did you measure the success of that project?",
+            "What would you do differently if you had to do it again?",
+            "Can you walk me through your decision-making process?",
+            "What skills did you develop through that experience?",
+            "How did you handle any setbacks or failures?",
+            "What feedback did you receive from stakeholders?",
+            "How did this experience prepare you for future challenges?",
+            "What resources or support did you rely on?",
+            "Can you give me a specific example of a problem you solved?",
+            "How did you prioritize your responsibilities?",
+            "What was the most valuable lesson you learned?",
+            "How did you collaborate with others on this?",
+            "What impact did your work have on the organization?"
+        ]
+        return random.choice(follow_up_questions)
+    
+    prompt = f"Based on this interview response about their resume experience: '{response.answer}', generate a thoughtful follow-up question that digs deeper into their experience. The question should encourage the candidate to provide more specific details or examples."
+    
+    # Try Gemini first (preferred)
+    if GEMINI_AVAILABLE and gemini_client:
+        try:
+            system_prompt = "You are an expert technical interviewer. Generate thoughtful follow-up questions that encourage candidates to elaborate on their resume experience and provide more specific examples. Keep responses concise."
+            
+            ai_response = gemini_client.generate_content([
+                system_prompt,
+                prompt
+            ])
+            
+            if ai_response.text:
+                return ai_response.text.strip()
+        except Exception as e:
+            print(f"Error generating Gemini resume follow-up: {e}")
+    
+    # Fallback to OpenAI
+    if OPENAI_AVAILABLE and openai_client:
+        try:
+            ai_response = openai_client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are an expert technical interviewer. Generate thoughtful follow-up questions that encourage candidates to elaborate on their resume experience and provide more specific examples."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=100,
+                temperature=0.7
+            )
+            
+            return ai_response.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"Error generating OpenAI resume follow-up: {e}")
+    
+    # Fallback to local follow-up questions
+    follow_up_questions = [
+        "Can you provide more specific details about that experience?",
+        "What were the key challenges you faced in that situation?",
+        "How did you measure the success of that project?",
+        "What would you do differently if you had to do it again?",
+        "Can you walk me through your decision-making process?",
+        "What skills did you develop through that experience?",
+        "How did you handle any setbacks or failures?",
+        "What feedback did you receive from stakeholders?",
+        "How did this experience prepare you for future challenges?",
+        "What resources or support did you rely on?",
+        "Can you give me a specific example of a problem you solved?",
+        "How did you prioritize your responsibilities?",
+        "What was the most valuable lesson you learned?",
+        "How did you collaborate with others on this?",
+        "What impact did your work have on the organization?"
+    ]
+    
+    return random.choice(follow_up_questions)
+
 @app.get("/get-subjects")
 async def get_subjects():
     return {"subjects": list(SUBJECTS.keys())}
@@ -378,6 +674,13 @@ async def get_chat_history(session_id: str):
     """Retrieve chat history for a session"""
     if session_id in chat_sessions:
         return {"history": chat_sessions[session_id]}
+    return {"history": []}
+
+@app.get("/resume-chat-history/{session_id}")
+async def get_resume_chat_history(session_id: str):
+    """Retrieve resume chat history for a session"""
+    if session_id in resume_chat_sessions:
+        return {"history": resume_chat_sessions[session_id]}
     return {"history": []}
 
 @app.get("/health")

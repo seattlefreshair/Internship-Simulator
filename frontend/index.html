@@ -45,6 +45,45 @@
             opacity: 0.9;
         }
 
+        /* Tab Styles */
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 20px;
+            text-align: center;
+            background: #f8f9fa;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab.active {
+            background: white;
+            color: #4CAF50;
+            border-bottom-color: #4CAF50;
+        }
+
+        .tab:hover {
+            background: #e9ecef;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
         .main-content {
             display: grid;
             grid-template-columns: 1fr 2fr;
@@ -198,6 +237,76 @@
             border-color: #4CAF50;
         }
 
+        /* Resume Upload Styles */
+        .resume-upload {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .upload-area {
+            border: 2px dashed #4CAF50;
+            border-radius: 15px;
+            padding: 40px 20px;
+            margin: 20px 0;
+            background: #f8fff8;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-area:hover {
+            border-color: #45a049;
+            background: #f0fff0;
+        }
+
+        .upload-area.dragover {
+            border-color: #45a049;
+            background: #e8f5e8;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            color: #4CAF50;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .resume-info {
+            background: #e8f5e8;
+            border: 1px solid #4CAF50;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .resume-info.show {
+            display: block;
+        }
+
+        .resume-info h4 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+
+        .resume-info p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
         .btn {
             width: 100%;
             padding: 15px;
@@ -218,6 +327,12 @@
 
         .btn-secondary {
             background: linear-gradient(135deg, #6c757d, #5a6268);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .typing-indicator {
@@ -260,52 +375,114 @@
             </div>
         </div>
         
-        <div class="main-content">
-            <div class="sidebar">
-                <div class="controls">
-                    <div class="control-group">
-                        <label for="subject">Subject:</label>
-                        <select id="subject" onchange="populateTopics()">
-                            <option value="">Select subject</option>
-                        </select>
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('basic')">Basic Questions</button>
+            <button class="tab" onclick="switchTab('resume')">Resume Upload</button>
+        </div>
+        
+        <!-- Basic Tab Content -->
+        <div id="basic-tab" class="tab-content active">
+            <div class="main-content">
+                <div class="sidebar">
+                    <div class="controls">
+                        <div class="control-group">
+                            <label for="subject">Subject:</label>
+                            <select id="subject" onchange="populateTopics()">
+                                <option value="">Select subject</option>
+                            </select>
+                        </div>
+                        
+                        <div class="control-group">
+                            <label for="topic">Topic:</label>
+                            <select id="topic" onchange="populateChapters()">
+                                <option value="">Please select subject first</option>
+                            </select>
+                        </div>
+                        
+                        <div class="control-group">
+                            <label for="chapter">Chapter:</label>
+                            <select id="chapter">
+                                <option value="">Please select topic first</option>
+                            </select>
+                        </div>
+                        
+                        <button class="btn" onclick="getQuestion()">Generate Question</button>
+                        <button class="btn btn-secondary" onclick="clearChat()">Clear Chat</button>
                     </div>
-                    
-                    <div class="control-group">
-                        <label for="topic">Topic:</label>
-                        <select id="topic" onchange="populateChapters()">
-                            <option value="">Please select subject first</option>
-                        </select>
-                    </div>
-                    
-                    <div class="control-group">
-                        <label for="chapter">Chapter:</label>
-                        <select id="chapter">
-                            <option value="">Please select topic first</option>
-                        </select>
-                    </div>
-                    
-                    <button class="btn" onclick="getQuestion()">Generate Question</button>
-                    <button class="btn btn-secondary" onclick="clearChat()">Clear Chat</button>
                 </div>
-            </div>
-            
-            <div class="chat-area">
-                <div class="chat-messages" id="chatMessages">
-                    <div class="message question">
-                        <div class="message-avatar">AI</div>
-                        <div class="message-content">
-                            Welcome to the Interview Simulator! Click "Generate Question" to get started, or use the filters to choose a specific topic.
+                
+                <div class="chat-area">
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message question">
+                            <div class="message-avatar">AI</div>
+                            <div class="message-content">
+                                Welcome to the Interview Simulator! Click "Generate Question" to get started, or use the filters to choose a specific topic.
+                            </div>
                         </div>
                     </div>
+                    
+                    <div class="typing-indicator" id="typingIndicator">
+                        AI is typing...
+                    </div>
+                    
+                    <div class="chat-input">
+                        <input type="text" id="userInput" placeholder="Type your answer here..." onkeypress="handleKeyPress(event)">
+                        <button onclick="sendMessage()" id="sendButton">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Resume Upload Tab Content -->
+        <div id="resume-tab" class="tab-content">
+            <div class="main-content">
+                <div class="sidebar">
+                    <div class="resume-upload">
+                        <div class="upload-area" onclick="document.getElementById('resumeFile').click()" 
+                             ondrop="handleDrop(event)" 
+                             ondragover="handleDragOver(event)" 
+                             ondragleave="handleDragLeave(event)">
+                            <div class="upload-icon">📄</div>
+                            <div class="upload-text">Upload your resume</div>
+                            <div class="upload-hint">Click to browse or drag and drop</div>
+                            <div class="upload-hint">Supports PDF, DOC, DOCX, TXT</div>
+                        </div>
+                        
+                        <input type="file" id="resumeFile" class="file-input" 
+                               accept=".pdf,.doc,.docx,.txt" onchange="handleFileSelect(event)">
+                        
+                        <div class="resume-info" id="resumeInfo">
+                            <h4>📄 Resume Uploaded</h4>
+                            <p id="fileName"></p>
+                            <p id="fileSize"></p>
+                        </div>
+                        
+                        <button class="btn" id="generateResumeQuestion" onclick="generateResumeQuestion()" disabled>
+                            Generate Resume-Based Question
+                        </button>
+                        <button class="btn btn-secondary" onclick="clearResumeChat()">Clear Chat</button>
+                    </div>
                 </div>
                 
-                <div class="typing-indicator" id="typingIndicator">
-                    AI is typing...
-                </div>
-                
-                <div class="chat-input">
-                    <input type="text" id="userInput" placeholder="Type your answer here..." onkeypress="handleKeyPress(event)">
-                    <button onclick="sendMessage()" id="sendButton">Send</button>
+                <div class="chat-area">
+                    <div class="chat-messages" id="resumeChatMessages">
+                        <div class="message question">
+                            <div class="message-avatar">AI</div>
+                            <div class="message-content">
+                                Upload your resume to get personalized interview questions based on your experience and skills.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="typing-indicator" id="resumeTypingIndicator">
+                        AI is typing...
+                    </div>
+                    
+                    <div class="chat-input">
+                        <input type="text" id="resumeUserInput" placeholder="Type your answer here..." onkeypress="handleResumeKeyPress(event)">
+                        <button onclick="sendResumeMessage()" id="resumeSendButton">Send</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -314,12 +491,222 @@
     <script>
         let currentQuestion = "";
         let chatHistory = [];
+        let currentResumeQuestion = "";
+        let resumeChatHistory = [];
+        let uploadedResume = null;
 
         // Populate dropdowns when page loads
         window.onload = function() {
             populateSubjects();
             checkAIStatus();
         };
+
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName + '-tab').classList.add('active');
+        }
+
+        // Resume upload functionality
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                handleResumeFile(file);
+            }
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            const file = event.dataTransfer.files[0];
+            if (file) {
+                handleResumeFile(file);
+            }
+            event.target.classList.remove('dragover');
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.target.classList.add('dragover');
+        }
+
+        function handleDragLeave(event) {
+            event.preventDefault();
+            event.target.classList.remove('dragover');
+        }
+
+        function handleResumeFile(file) {
+            // Validate file type
+            const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+            if (!allowedTypes.includes(file.type)) {
+                alert('Please upload a PDF, DOC, DOCX, or TXT file.');
+                return;
+            }
+
+            // Validate file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('File size must be less than 5MB.');
+                return;
+            }
+
+            uploadedResume = file;
+            
+            // Update UI
+            document.getElementById('fileName').textContent = `File: ${file.name}`;
+            document.getElementById('fileSize').textContent = `Size: ${(file.size / 1024).toFixed(1)} KB`;
+            document.getElementById('resumeInfo').classList.add('show');
+            document.getElementById('generateResumeQuestion').disabled = false;
+        }
+
+        async function generateResumeQuestion() {
+            if (!uploadedResume) {
+                alert('Please upload a resume first.');
+                return;
+            }
+
+            showResumeTypingIndicator();
+            
+            try {
+                const formData = new FormData();
+                formData.append('resume', uploadedResume);
+                
+                const response = await fetch('/generate-resume-question', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                hideResumeTypingIndicator();
+                
+                if (data.success) {
+                    currentResumeQuestion = data.question;
+                    addResumeMessage(data.question, 'question');
+                    
+                    // Enable chat input
+                    document.getElementById('resumeUserInput').disabled = false;
+                    document.getElementById('resumeSendButton').disabled = false;
+                    document.getElementById('resumeUserInput').focus();
+                } else {
+                    addResumeMessage('Sorry, there was an error processing your resume. Please try again.', 'question');
+                }
+                
+            } catch (error) {
+                hideResumeTypingIndicator();
+                console.error('Error:', error);
+                addResumeMessage('Sorry, there was an error generating the question. Please try again.', 'question');
+            }
+        }
+
+        async function sendResumeMessage() {
+            const input = document.getElementById('resumeUserInput');
+            const message = input.value.trim();
+            
+            if (message && currentResumeQuestion) {
+                addResumeMessage(message, 'user');
+                input.value = '';
+                
+                // Store in chat history
+                resumeChatHistory.push({
+                    question: currentResumeQuestion,
+                    answer: message,
+                    timestamp: new Date().toISOString()
+                });
+                
+                // Submit response and get follow-up question
+                showResumeTypingIndicator();
+                try {
+                    const response = await fetch('/submit-resume-response', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            question: currentResumeQuestion,
+                            answer: message,
+                            resume_data: uploadedResume ? uploadedResume.name : null
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    hideResumeTypingIndicator();
+                    
+                    if (data.follow_up) {
+                        currentResumeQuestion = data.follow_up;
+                        addResumeMessage(data.follow_up, 'question');
+                    } else {
+                        // Fallback to generating a new question
+                        setTimeout(() => {
+                            generateResumeQuestion();
+                        }, 500);
+                    }
+                    
+                } catch (error) {
+                    hideResumeTypingIndicator();
+                    console.error('Error submitting response:', error);
+                    // Fallback to generating a new question
+                    setTimeout(() => {
+                        generateResumeQuestion();
+                    }, 500);
+                }
+            }
+        }
+
+        function addResumeMessage(content, type) {
+            const chatMessages = document.getElementById('resumeChatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = type === 'question' ? 'AI' : 'You';
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            messageContent.textContent = content;
+            
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(messageContent);
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function handleResumeKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendResumeMessage();
+            }
+        }
+
+        function showResumeTypingIndicator() {
+            document.getElementById('resumeTypingIndicator').classList.add('show');
+        }
+
+        function hideResumeTypingIndicator() {
+            document.getElementById('resumeTypingIndicator').classList.remove('show');
+        }
+
+        function clearResumeChat() {
+            document.getElementById('resumeChatMessages').innerHTML = `
+                <div class="message question">
+                    <div class="message-avatar">AI</div>
+                    <div class="message-content">
+                        Upload your resume to get personalized interview questions based on your experience and skills.
+                    </div>
+                </div>
+            `;
+            resumeChatHistory = [];
+            currentResumeQuestion = "";
+            document.getElementById('resumeUserInput').disabled = true;
+            document.getElementById('resumeSendButton').disabled = true;
+        }
+
+        // Initialize resume chat input as disabled
+        document.getElementById('resumeUserInput').disabled = true;
+        document.getElementById('resumeSendButton').disabled = true;
 
         async function populateSubjects() {
             try {
@@ -390,7 +777,6 @@
             }
         }
 
-        // TODO: what is async mean?
         async function getQuestion() {
             showTypingIndicator();
             
@@ -450,8 +836,6 @@
                     const topic = document.getElementById('topic').value;
                     const chapter = document.getElementById('chapter').value;
                     
-                    // TODO: what is await mean?
-                    // TODO: what is submit-response mean?
                     const response = await fetch('/submit-response', {
                         method: 'POST',
                         headers: {
