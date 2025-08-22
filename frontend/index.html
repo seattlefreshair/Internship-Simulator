@@ -32,6 +32,7 @@
             color: white;
             padding: 30px;
             text-align: center;
+            position: relative;
         }
 
         .header h1 {
@@ -43,6 +44,58 @@
         .header p {
             font-size: 1.1rem;
             opacity: 0.9;
+        }
+
+        .user-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 15px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .user-name {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
         }
 
         /* Tab Styles */
@@ -373,18 +426,35 @@
             <div id="aiStatus" style="margin-top: 10px; font-size: 0.9rem; opacity: 0.8;">
                 <span id="aiStatusText">Checking AI availability...</span>
             </div>
+            
+            <div class="user-controls">
+                <div class="user-info">
+                    <div class="user-avatar" id="user-avatar">U</div>
+                    <span class="user-name" id="user-name">User</span>
+                </div>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
         </div>
         
         <!-- Tab Navigation -->
         <div class="tabs">
             <button class="tab active" onclick="switchTab('basic')">Basic Questions</button>
             <button class="tab" onclick="switchTab('resume')">Resume Upload</button>
+            <button class="tab" onclick="switchTab('profile')">My Profile</button>
         </div>
         
         <!-- Basic Tab Content -->
         <div id="basic-tab" class="tab-content active">
             <div class="main-content">
                 <div class="sidebar">
+                    <div class="user-profile" style="margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 10px; border: 1px solid #e9ecef;">
+                        <h4 style="margin-bottom: 15px; color: #333; display: flex; align-items: center; gap: 10px;">
+                            <span style="width: 24px; height: 24px; background: #4CAF50; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold;" id="sidebar-user-avatar">U</span>
+                            Welcome, <span id="sidebar-user-name">User</span>!
+                        </h4>
+                        <p style="margin: 0; color: #666; font-size: 14px;">Your interview sessions are personalized and saved.</p>
+                    </div>
+                    
                     <div class="controls">
                         <div class="control-group">
                             <label for="subject">Subject:</label>
@@ -486,6 +556,126 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Profile Tab Content -->
+        <div id="profile-tab" class="tab-content">
+            <div class="main-content">
+                <div class="sidebar">
+                    <div class="profile-section" style="margin-bottom: 30px;">
+                        <h4 style="margin-bottom: 20px; color: #333; display: flex; justify-content: space-between; align-items: center;">
+                            Profile Information
+                            <div style="display: flex; gap: 10px;">
+                                <button onclick="testAuthentication()" style="background: #fd7e14; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 12px;">Test Auth</button>
+                                <button onclick="getSessionInfo()" style="background: #6f42c1; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 12px;">Sessions</button>
+                                <button onclick="showProfileSummary()" style="background: #ffc107; color: #212529; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 12px;">Summary</button>
+                                <button onclick="manualTokenRefresh()" style="background: #17a2b8; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 12px;">Refresh Token</button>
+                                <button onclick="exportProfileData()" style="background: #6c757d; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 12px;">Export</button>
+                                <button onclick="manualRefreshProfile()" style="background: #4CAF50; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 12px;">Refresh</button>
+                            </div>
+                        </h4>
+                        <div class="profile-info" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Full Name:</label>
+                                <input type="text" id="profile-name" style="width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 6px; font-size: 14px;">
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Email:</label>
+                                <input type="email" id="profile-email" style="width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 6px; font-size: 14px;" readonly>
+                            </div>
+                            <button class="btn" onclick="updateProfile()" style="width: 100%;">Update Profile</button>
+                        </div>
+                    </div>
+                    
+                    <div class="resume-management" style="margin-bottom: 30px;">
+                        <h4 style="margin-bottom: 20px; color: #333;">Resume Management</h4>
+                        <div style="margin-bottom: 15px;">
+                            <input type="text" id="resume-search" placeholder="Search resumes..." style="width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 6px; font-size: 14px;">
+                        </div>
+                        <div class="resume-list" id="resume-list" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                            <p style="text-align: center; color: #666; margin: 0;">Click Profile tab to load data</p>
+                        </div>
+                        <button class="btn btn-secondary" onclick="refreshResumes()" style="width: 100%; margin-top: 15px;">Refresh Resumes</button>
+                    </div>
+                    
+                    <div class="session-history" style="margin-bottom: 30px;">
+                        <h4 style="margin-bottom: 20px; color: #333;">Session History</h4>
+                        <div class="history-info" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                            <p style="margin: 0; color: #666; font-size: 14px;">Your interview sessions and responses are automatically saved.</p>
+                            <p style="margin: 10px 0 0 0; color: #666; font-size: 14px;">Total sessions: <span id="session-count">0</span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-stats" style="margin-bottom: 30px;">
+                        <h4 style="margin-bottom: 20px; color: #333;">Profile Statistics</h4>
+                        <div class="stats-info" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div style="text-align: center;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #4CAF50;" id="resume-count">0</div>
+                                    <div style="font-size: 12px; color: #666;">Resumes</div>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #007bff;" id="account-age">0</div>
+                                    <div style="font-size: 12px; color: #666;">Days Active</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-activity" style="margin-bottom: 30px;">
+                        <h4 style="margin-bottom: 20px; color: #333;">Recent Activity</h4>
+                        <div class="activity-info" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                            <div id="activity-timeline" style="font-size: 14px; color: #666;">
+                                <p style="text-align: center; margin: 0;">Loading activity...</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-settings" style="margin-bottom: 30px;">
+                        <h4 style="margin-bottom: 20px; color: #333;">Profile Settings</h4>
+                        <div class="settings-info" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                                    <input type="checkbox" id="email-notifications" style="width: auto;">
+                                    <span>Receive email notifications</span>
+                                </label>
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                                    <input type="checkbox" id="auto-save" style="width: auto;" checked>
+                                    <span>Auto-save interview sessions</span>
+                                </label>
+                            </div>
+                            <button onclick="saveProfileSettings()" style="background: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px;">Save Settings</button>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-help" style="margin-bottom: 30px;">
+                        <h4 style="margin-bottom: 20px; color: #333;">Help & Support</h4>
+                        <div class="help-info" style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #e9ecef;">
+                            <div style="margin-bottom: 15px;">
+                                <button onclick="showProfileHelp()" style="background: #17a2b8; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; width: 100%;">View Profile Guide</button>
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <button onclick="contactSupport()" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; width: 100%;">Contact Support</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chat-area">
+                    <div class="chat-messages" id="profileChatMessages">
+                        <div class="message question">
+                            <div class="message-avatar">AI</div>
+                            <div class="message-content">
+                                <h4>Welcome to your profile!</h4>
+                                <p>Here you can manage your personal information, view your uploaded resumes, and track your interview session history.</p>
+                                <p>Your data is securely stored and personalized just for you.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -494,11 +684,133 @@
         let currentResumeQuestion = "";
         let resumeChatHistory = [];
         let uploadedResume = null;
+        let currentUser = null;
+
+        // Authentication functions
+        function checkAuth() {
+            const token = localStorage.getItem('authToken');
+            const userId = localStorage.getItem('userId');
+            const userName = localStorage.getItem('userName');
+            
+            if (!token || !userId) {
+                // Redirect to login if not authenticated
+                window.location.href = '/';
+                return false;
+            }
+            
+            // Set user info
+            currentUser = {
+                id: userId,
+                name: userName || 'User'
+            };
+            
+            // Update UI with user info
+            updateUserInfo();
+            return true;
+        }
+
+        function updateUserInfo() {
+            if (currentUser) {
+                const userAvatar = document.getElementById('user-avatar');
+                const userName = document.getElementById('user-name');
+                const sidebarUserAvatar = document.getElementById('sidebar-user-avatar');
+                const sidebarUserName = document.getElementById('sidebar-user-name');
+                
+                if (userAvatar && userName && sidebarUserAvatar && sidebarUserName) {
+                    // Set avatar initials
+                    const initials = currentUser.name.split(' ').map(n => n[0]).join('').toUpperCase();
+                    userAvatar.textContent = initials || 'U';
+                    sidebarUserAvatar.textContent = initials || 'U';
+                    
+                    // Set user name
+                    userName.textContent = currentUser.name;
+                    sidebarUserName.textContent = currentUser.name;
+                }
+            }
+        }
+
+        function logout() {
+            // Clear local storage
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('userName');
+            
+            // Redirect to login
+            window.location.href = '/';
+        }
+
+        function handleAuthError() {
+            console.log('Authentication error detected, redirecting to login');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('userName');
+            
+            // Show user-friendly message before redirecting
+            alert('Your session has expired. Please log in again.');
+            window.location.href = '/';
+        }
+
+        async function manualTokenRefresh() {
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                alert('No token found. Please log in again.');
+                handleAuthError();
+                return;
+            }
+            
+            try {
+                const response = await fetch('/refresh-token', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.new_token) {
+                        localStorage.setItem('authToken', data.new_token);
+                        alert('Token refreshed successfully!');
+                        return true;
+                    }
+                }
+                
+                // If refresh failed, redirect to login
+                alert('Token refresh failed. Please log in again.');
+                handleAuthError();
+                return false;
+                
+            } catch (error) {
+                console.error('Error refreshing token:', error);
+                alert('Error refreshing token. Please log in again.');
+                handleAuthError();
+                return false;
+            }
+        }
 
         // Populate dropdowns when page loads
         window.onload = function() {
+            // Check authentication first
+            if (!checkAuth()) {
+                return;
+            }
+            
             populateSubjects();
             checkAIStatus();
+            
+            // If profile tab is active, load profile data
+            if (document.getElementById('profile-tab').classList.contains('active')) {
+                setTimeout(() => {
+                    refreshProfileData();
+                }, 100);
+            }
+            
+            // Set up periodic token validation
+            setInterval(async () => {
+                if (currentUser) {
+                    await refreshTokenIfNeeded();
+                }
+            }, 5 * 60 * 1000); // Check every 5 minutes
         };
 
         function switchTab(tabName) {
@@ -509,6 +821,46 @@
             // Update tab content
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // Load specific data for each tab
+            if (tabName === 'profile') {
+                // Load profile data when profile tab is shown
+                setTimeout(() => {
+                    refreshProfileData();
+                }, 100);
+            } else {
+                // Clear profile data when switching away from profile tab
+                clearProfileData();
+            }
+        }
+
+        function clearProfileData() {
+            // Clear profile form fields
+            const profileName = document.getElementById('profile-name');
+            const profileEmail = document.getElementById('profile-email');
+            if (profileName) profileName.value = '';
+            if (profileEmail) profileEmail.value = '';
+            
+            // Clear resume list
+            const resumeList = document.getElementById('resume-list');
+            if (resumeList) resumeList.innerHTML = '<p style="text-align: center; color: #666; margin: 0;">Click Profile tab to load data</p>';
+            
+            // Clear session count
+            const sessionCount = document.getElementById('session-count');
+            if (sessionCount) sessionCount.textContent = '0';
+            
+            // Clear profile stats
+            updateProfileStats(0, 0);
+            
+            // Clear activity timeline
+            const activityTimeline = document.getElementById('activity-timeline');
+            if (activityTimeline) activityTimeline.innerHTML = '<p style="text-align: center; margin: 0; color: #666;">Click Profile tab to load data</p>';
+            
+            // Reset profile settings to defaults
+            const emailNotifications = document.getElementById('email-notifications');
+            const autoSave = document.getElementById('auto-save');
+            if (emailNotifications) emailNotifications.checked = false;
+            if (autoSave) autoSave.checked = true;
         }
 
         // Resume upload functionality
@@ -556,14 +908,120 @@
             
             // Update UI
             document.getElementById('fileName').textContent = `File: ${file.name}`;
-            document.getElementById('fileSize').textContent = `Size: ${(file.size / 1024).toFixed(1)} KB`;
+            document.getElementById('fileSize').textContent = `Size: ${formatFileSize(file.size)}`;
             document.getElementById('resumeInfo').classList.add('show');
             document.getElementById('generateResumeQuestion').disabled = false;
+            
+            // Auto-upload the resume
+            uploadResumeFile(file);
+        }
+
+        async function uploadResumeFile(file) {
+            if (!currentUser) {
+                alert('Please log in to upload resumes.');
+                return;
+            }
+
+            console.log('Starting resume upload for user:', currentUser.id);
+
+            // Validate and refresh token if needed
+            const tokenValid = await refreshTokenIfNeeded();
+            if (!tokenValid) {
+                alert('Authentication failed. Please log in again.');
+                return;
+            }
+
+            // Show upload progress
+            const uploadArea = document.querySelector('.upload-area');
+            const originalText = uploadArea.querySelector('.upload-text').textContent;
+            uploadArea.querySelector('.upload-text').textContent = 'Uploading...';
+            uploadArea.style.background = '#e8f5e8';
+            uploadArea.style.borderColor = '#45a049';
+
+            try {
+                const formData = new FormData();
+                formData.append('resume', file);
+                
+                const token = localStorage.getItem('authToken');
+                console.log('Using token:', token ? token.substring(0, 20) + '...' : 'No token');
+                
+                const response = await fetch('/upload-resume', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+                
+                console.log('Upload response status:', response.status);
+                
+                if (response.status === 401) {
+                    console.error('Authentication failed during upload');
+                    handleAuthError();
+                    return;
+                }
+                
+                const data = await response.json();
+                console.log('Upload response data:', data);
+                
+                if (data.success) {
+                    // Show success state
+                    uploadArea.querySelector('.upload-text').textContent = 'Upload Complete!';
+                    uploadArea.style.background = '#d4edda';
+                    uploadArea.style.borderColor = '#28a745';
+                    
+                    setTimeout(() => {
+                        uploadArea.querySelector('.upload-text').textContent = originalText;
+                        uploadArea.style.background = '#f8fff8';
+                        uploadArea.style.borderColor = '#4CAF50';
+                    }, 3000);
+                    
+                    alert('Resume uploaded successfully!');
+                    // Refresh the resume list in the profile tab
+                    if (document.getElementById('profile-tab').classList.contains('active')) {
+                        loadResumes();
+                    }
+                } else {
+                    // Show error state
+                    uploadArea.querySelector('.upload-text').textContent = 'Upload Failed';
+                    uploadArea.style.background = '#f8d7da';
+                    uploadArea.style.borderColor = '#dc3545';
+                    
+                    setTimeout(() => {
+                        uploadArea.querySelector('.upload-text').textContent = originalText;
+                        uploadArea.style.background = '#f8fff8';
+                        uploadArea.style.borderColor = '#4CAF50';
+                    }, 3000);
+                    
+                    alert('Failed to upload resume: ' + (data.detail || 'Unknown error'));
+                }
+                
+            } catch (error) {
+                console.error('Error uploading resume:', error);
+                
+                // Show error state
+                uploadArea.querySelector('.upload-text').textContent = 'Upload Error';
+                uploadArea.style.background = '#f8d7da';
+                uploadArea.style.borderColor = '#dc3545';
+                
+                setTimeout(() => {
+                    uploadArea.querySelector('.upload-text').textContent = originalText;
+                    uploadArea.style.background = '#f8fff8';
+                    uploadArea.style.borderColor = '#4CAF50';
+                }, 3000);
+                
+                alert('Error uploading resume. Please try again.');
+            }
         }
 
         async function generateResumeQuestion() {
             if (!uploadedResume) {
                 alert('Please upload a resume first.');
+                return;
+            }
+
+            if (!currentUser) {
+                alert('Please log in to use this feature.');
                 return;
             }
 
@@ -573,8 +1031,12 @@
                 const formData = new FormData();
                 formData.append('resume', uploadedResume);
                 
+                const token = localStorage.getItem('authToken');
                 const response = await fetch('/generate-resume-question', {
                     method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
                     body: formData
                 });
                 
@@ -619,10 +1081,12 @@
                 // Submit response and get follow-up question
                 showResumeTypingIndicator();
                 try {
+                    const token = localStorage.getItem('authToken');
                     const response = await fetch('/submit-resume-response', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
                         },
                         body: JSON.stringify({
                             question: currentResumeQuestion,
@@ -708,6 +1172,165 @@
         document.getElementById('resumeUserInput').disabled = true;
         document.getElementById('resumeSendButton').disabled = true;
 
+        // Add search functionality for resumes
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('resume-search');
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    const searchTerm = this.value.trim();
+                    if (searchTerm.length > 0) {
+                        searchResumes(searchTerm);
+                    } else {
+                        loadResumes(); // Load all resumes when search is cleared
+                    }
+                });
+            }
+        });
+
+        // Token validation and management
+        async function validateToken(token) {
+            try {
+                const response = await fetch(`/validate-token?token=${encodeURIComponent(token)}`);
+                const data = await response.json();
+                return data.valid;
+            } catch (error) {
+                console.error('Error validating token:', error);
+                return false;
+            }
+        }
+
+        async function testAuthentication() {
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                alert('No token found. Please log in first.');
+                return;
+            }
+            
+            try {
+                console.log('Testing authentication...');
+                const response = await fetch('/test-auth', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Authentication test successful:', data);
+                    alert('✅ Authentication is working! User ID: ' + data.user_id);
+                } else {
+                    console.error('Authentication test failed:', response.status);
+                    alert('❌ Authentication test failed. Status: ' + response.status);
+                }
+            } catch (error) {
+                console.error('Error testing authentication:', error);
+                alert('❌ Error testing authentication: ' + error.message);
+            }
+        }
+
+        async function getSessionInfo() {
+            try {
+                const response = await fetch('/session-info');
+                const data = await response.json();
+                console.log('Session info:', data);
+                alert('Session Info:\nMemory Sessions: ' + data.memory_sessions + '\nCheck console for details.');
+            } catch (error) {
+                console.error('Error getting session info:', error);
+                alert('Error getting session info: ' + error.message);
+            }
+        }
+
+        async function refreshTokenIfNeeded() {
+            const token = localStorage.getItem('authToken');
+            if (!token) return false;
+            
+            try {
+                const isValid = await validateToken(token);
+                if (!isValid) {
+                    console.log('Token is invalid, attempting to refresh...');
+                    const response = await fetch('/refresh-token', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success && data.new_token) {
+                            localStorage.setItem('authToken', data.new_token);
+                            console.log('Token refreshed successfully');
+                            return true;
+                        }
+                    }
+                    
+                    // If refresh failed, clear invalid token
+                    console.log('Token refresh failed, clearing invalid token');
+                    handleAuthError();
+                    return false;
+                }
+                return true;
+            } catch (error) {
+                console.error('Error refreshing token:', error);
+                return false;
+            }
+        }
+
+        async function searchResumes(searchTerm) {
+            if (!currentUser) return;
+            
+            try {
+                const token = localStorage.getItem('authToken');
+                const response = await fetch(`/search-resumes?search_term=${encodeURIComponent(searchTerm)}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.status === 401) {
+                    handleAuthError();
+                    return;
+                }
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const resumeList = document.getElementById('resume-list');
+                    
+                    if (data.success && data.resumes && data.resumes.length > 0) {
+                        let html = `<h5 style="margin-bottom: 15px; color: #333;">Search Results for "${searchTerm}":</h5>`;
+                        data.resumes.forEach(resume => {
+                            const uploadDate = resume.uploaded_at || resume.created_at || 'Unknown date';
+                            const formattedDate = formatDate(uploadDate);
+                            const formattedSize = formatFileSize(resume.file_size || 0);
+                            html += `
+                                <div style="padding: 15px; background: white; border-radius: 8px; margin-bottom: 10px; border: 1px solid #e9ecef;">
+                                    <div style="font-weight: 600; margin-bottom: 5px;">${resume.file_name || 'Unknown file'}</div>
+                                    <div style="font-size: 12px; color: #666; margin-bottom: 10px;">
+                                        Uploaded: ${formattedDate}
+                                    </div>
+                                    <div style="font-size: 12px; color: #666; margin-bottom: 10px;">
+                                        Size: ${formattedSize}
+                                    </div>
+                                    <button onclick="deleteResume('${resume.id}')" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">Delete</button>
+                                    <button onclick="showResumeDetails('${resume.id}')" style="background: #007bff; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 5px;">Details</button>
+                                    <button onclick="downloadResume('${resume.id}')" style="background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 5px;">Download</button>
+                                </div>
+                            `;
+                        });
+                        resumeList.innerHTML = html;
+                    } else {
+                        resumeList.innerHTML = `<p style="text-align: center; color: #666; margin: 0;">No resumes found matching "${searchTerm}".</p>`;
+                    }
+                } else {
+                    console.error('Failed to search resumes:', response.status);
+                    document.getElementById('resume-list').innerHTML = '<p style="text-align: center; color: #666; margin: 0;">Error searching resumes. Please try again.</p>';
+                }
+            } catch (error) {
+                console.error('Error searching resumes:', error);
+                document.getElementById('resume-list').innerHTML = '<p style="text-align: center; color: #666; margin: 0;">Error searching resumes. Please try again.</p>';
+            }
+        }
+
         async function populateSubjects() {
             try {
                 const response = await fetch('/get-subjects');
@@ -778,6 +1401,11 @@
         }
 
         async function getQuestion() {
+            if (!currentUser) {
+                alert('Please log in to use this feature.');
+                return;
+            }
+
             showTypingIndicator();
             
             try {
@@ -785,10 +1413,12 @@
                 const topic = document.getElementById('topic').value;
                 const chapter = document.getElementById('chapter').value;
                 
+                const token = localStorage.getItem('authToken');
                 const response = await fetch('/get-question', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
                         subject: subject,
@@ -836,10 +1466,12 @@
                     const topic = document.getElementById('topic').value;
                     const chapter = document.getElementById('chapter').value;
                     
+                    const token = localStorage.getItem('authToken');
                     const response = await fetch('/submit-response', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
                         },
                         body: JSON.stringify({
                             question: currentQuestion,
@@ -954,6 +1586,640 @@
         // Initialize chat input as disabled until first question
         document.getElementById('userInput').disabled = true;
         document.getElementById('sendButton').disabled = true;
+
+        // Profile management functions
+        async function loadProfile() {
+            if (!currentUser) {
+                console.log('No current user, cannot load profile');
+                return;
+            }
+            
+            console.log('Loading profile for user:', currentUser.id);
+            
+            // Show loading state
+            const profileName = document.getElementById('profile-name');
+            const profileEmail = document.getElementById('profile-email');
+            profileName.value = 'Loading...';
+            profileEmail.value = 'Loading...';
+            
+            try {
+                const token = localStorage.getItem('authToken');
+                const response = await fetch(`/users/${currentUser.id}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                console.log('Profile response status:', response.status);
+                
+                if (response.status === 401) {
+                    handleAuthError();
+                    return;
+                }
+                
+                if (response.ok) {
+                    const userData = await response.json();
+                    console.log('Profile data received:', userData);
+                    if (userData.success && userData.user) {
+                        profileName.value = userData.user.name || '';
+                        profileEmail.value = userData.user.email || '';
+                        
+                        // Show success feedback
+                        profileName.style.borderColor = '#4CAF50';
+                        profileEmail.style.borderColor = '#4CAF50';
+                        setTimeout(() => {
+                            profileName.style.borderColor = '#e9ecef';
+                            profileEmail.style.borderColor = '#e9ecef';
+                        }, 2000);
+                    }
+                } else {
+                    console.error('Failed to load profile:', response.status);
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
+                    profileName.value = 'Error loading profile';
+                    profileEmail.value = 'Error loading profile';
+                }
+            } catch (error) {
+                console.error('Error loading profile:', error);
+                profileName.value = 'Error loading profile';
+                profileEmail.value = 'Error loading profile';
+            }
+        }
+
+        async function loadSessionHistory() {
+            if (!currentUser) {
+                console.log('No current user, cannot load session history');
+                return;
+            }
+            
+            console.log('Loading session history for user:', currentUser.id);
+            
+            // Show loading state
+            const sessionCount = document.getElementById('session-count');
+            sessionCount.textContent = 'Loading...';
+            
+            try {
+                const token = localStorage.getItem('authToken');
+                const response = await fetch(`/session-history/${currentUser.id}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                console.log('Session history response status:', response.status);
+                
+                if (response.status === 401) {
+                    handleAuthError();
+                    return;
+                }
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Session history data received:', data);
+                    if (data.success) {
+                        sessionCount.textContent = data.session_count || 0;
+                        
+                        // Show success feedback
+                        sessionCount.style.color = '#4CAF50';
+                        setTimeout(() => {
+                            sessionCount.style.color = 'inherit';
+                        }, 2000);
+                    }
+                } else {
+                    // If endpoint doesn't exist, just show 0 for now
+                    console.log('Session history endpoint not available, showing 0');
+                    sessionCount.textContent = '0';
+                }
+            } catch (error) {
+                console.error('Error loading session history:', error);
+                sessionCount.textContent = '0';
+            }
+        }
+
+        async function updateProfile() {
+            if (!currentUser) return;
+            
+            if (!validateProfileData()) {
+                return;
+            }
+            
+            try {
+                const name = document.getElementById('profile-name').value.trim();
+                
+                const token = localStorage.getItem('authToken');
+                const response = await fetch(`/users/${currentUser.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ name })
+                });
+                
+                if (response.ok) {
+                    // Update current user info
+                    currentUser.name = name;
+                    updateUserInfo();
+                    alert('Profile updated successfully!');
+                } else {
+                    if (response.status === 401) {
+                        handleAuthError();
+                        return;
+                    }
+                    alert('Failed to update profile');
+                }
+            } catch (error) {
+                console.error('Error updating profile:', error);
+                alert('Error updating profile');
+            }
+        }
+
+        async function loadResumes() {
+            if (!currentUser) {
+                console.log('No current user, cannot load resumes');
+                return;
+            }
+            
+            console.log('Loading resumes for user:', currentUser.id);
+            
+            // Show loading state
+            const resumeList = document.getElementById('resume-list');
+            resumeList.innerHTML = '<p style="text-align: center; color: #666; margin: 0;">Loading resumes...</p>';
+            
+            try {
+                const token = localStorage.getItem('authToken');
+                const response = await fetch('/resumes', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                console.log('Resumes response status:', response.status);
+                
+                if (response.status === 401) {
+                    handleAuthError();
+                    return;
+                }
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Resumes data received:', data);
+                    
+                    if (data.success && data.resumes && data.resumes.length > 0) {
+                        let html = '<h5 style="margin-bottom: 15px; color: #333;">Your Resumes:</h5>';
+                        data.resumes.forEach(resume => {
+                            const uploadDate = resume.uploaded_at || resume.created_at || 'Unknown date';
+                            const formattedDate = formatDate(uploadDate);
+                            const formattedSize = formatFileSize(resume.file_size || 0);
+                            html += `
+                                <div style="padding: 15px; background: white; border-radius: 8px; margin-bottom: 10px; border: 1px solid #e9ecef;">
+                                    <div style="font-weight: 600; margin-bottom: 5px;">${resume.file_name || 'Unknown file'}</div>
+                                    <div style="font-size: 12px; color: #666; margin-bottom: 10px;">
+                                        Uploaded: ${formattedDate}
+                                    </div>
+                                    <div style="font-size: 12px; color: #666; margin-bottom: 10px;">
+                                        Size: ${formattedSize}
+                                    </div>
+                                    <button onclick="deleteResume('${resume.id}')" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">Delete</button>
+                                    <button onclick="showResumeDetails('${resume.id}')" style="background: #007bff; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 5px;">Details</button>
+                                    <button onclick="downloadResume('${resume.id}')" style="background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 5px;">Download</button>
+                                </div>
+                            `;
+                        });
+                        resumeList.innerHTML = html;
+                        
+                        // Show success feedback
+                        resumeList.style.border = '2px solid #4CAF50';
+                        setTimeout(() => {
+                            resumeList.style.border = '1px solid #e9ecef';
+                        }, 2000);
+                    } else {
+                        resumeList.innerHTML = '<p style="text-align: center; color: #666; margin: 0;">No resumes uploaded yet.</p>';
+                    }
+                } else {
+                    console.error('Failed to load resumes:', response.status);
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
+                    resumeList.innerHTML = '<p style="text-align: center; color: #666; margin: 0;">Error loading resumes. Please try again.</p>';
+                }
+            } catch (error) {
+                console.error('Error loading resumes:', error);
+                resumeList.innerHTML = '<p style="text-align: center; color: #666; margin: 0;">Error loading resumes. Please try again.</p>';
+            }
+        }
+
+        async function deleteResume(resumeId) {
+            if (!currentUser || !confirm('Are you sure you want to delete this resume?')) return;
+            
+            try {
+                const token = localStorage.getItem('authToken');
+                const response = await fetch(`/resumes/${resumeId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    loadResumes(); // Refresh the list
+                    alert('Resume deleted successfully!');
+                } else {
+                    if (response.status === 401) {
+                        handleAuthError();
+                        return;
+                    }
+                    alert('Failed to delete resume');
+                }
+            } catch (error) {
+                console.error('Error deleting resume:', error);
+                alert('Error deleting resume');
+            }
+        }
+
+        async function showResumeDetails(resumeId) {
+            if (!currentUser) return;
+            
+            try {
+                const token = localStorage.getItem('authToken');
+                const response = await fetch(`/resumes/${resumeId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.status === 401) {
+                    handleAuthError();
+                    return;
+                }
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.resume) {
+                        const resume = data.resume;
+                        const details = `
+                            <strong>File Name:</strong> ${resume.file_name || 'Unknown'}<br>
+                            <strong>File Size:</strong> ${formatFileSize(resume.file_size || 0)}<br>
+                            <strong>Upload Date:</strong> ${formatDate(resume.uploaded_at || resume.created_at)}<br>
+                            <strong>File URL:</strong> <a href="${resume.file_url}" target="_blank">View File</a><br>
+                            <strong>Text Content:</strong> ${resume.extracted_text ? resume.extracted_text.substring(0, 200) + '...' : 'No text extracted'}
+                        `;
+                        alert(details);
+                    }
+                } else {
+                    alert('Failed to load resume details');
+                }
+            } catch (error) {
+                console.error('Error loading resume details:', error);
+                alert('Error loading resume details');
+            }
+        }
+
+        async function downloadResume(resumeId) {
+            if (!currentUser) return;
+            
+            try {
+                const token = localStorage.getItem('authToken');
+                const response = await fetch(`/resumes/${resumeId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.status === 401) {
+                    handleAuthError();
+                    return;
+                }
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.resume && data.resume.file_url) {
+                        // Open the file URL in a new tab for download
+                        window.open(data.resume.file_url, '_blank');
+                    } else {
+                        alert('Resume file not found');
+                    }
+                } else {
+                    alert('Failed to load resume for download');
+                }
+            } catch (error) {
+                console.error('Error downloading resume:', error);
+                alert('Error downloading resume');
+            }
+        }
+
+        function refreshResumes() {
+            loadResumes();
+        }
+
+        function refreshProfileData() {
+            if (currentUser) {
+                console.log('Refreshing profile data...');
+                loadProfile();
+                loadResumes();
+                loadSessionHistory();
+                loadProfileStats();
+                loadActivityTimeline();
+                loadProfileSettings();
+            } else {
+                console.log('No current user, cannot refresh profile data');
+            }
+        }
+
+        async function manualRefreshProfile() {
+            if (!currentUser) {
+                alert('Please log in to refresh your profile data.');
+                return;
+            }
+            
+            // Show loading state on refresh button
+            const refreshBtn = event.target;
+            const originalText = refreshBtn.textContent;
+            refreshBtn.textContent = 'Refreshing...';
+            refreshBtn.disabled = true;
+            
+            try {
+                await refreshProfileData();
+                // Show success feedback
+                refreshBtn.style.background = '#45a049';
+                refreshBtn.textContent = 'Refreshed!';
+                setTimeout(() => {
+                    refreshBtn.style.background = '#4CAF50';
+                    refreshBtn.textContent = originalText;
+                    refreshBtn.disabled = false;
+                }, 2000);
+            } catch (error) {
+                console.error('Error refreshing profile:', error);
+                refreshBtn.style.background = '#dc3545';
+                refreshBtn.textContent = 'Error!';
+                setTimeout(() => {
+                    refreshBtn.style.background = '#4CAF50';
+                    refreshBtn.textContent = originalText;
+                    refreshBtn.disabled = false;
+                }, 2000);
+            }
+        }
+
+        function updateProfileStats(resumeCount = 0, accountAge = 0) {
+            const resumeCountElement = document.getElementById('resume-count');
+            const accountAgeElement = document.getElementById('account-age');
+            
+            if (resumeCountElement) {
+                resumeCountElement.textContent = resumeCount;
+            }
+            
+            if (accountAgeElement) {
+                accountAgeElement.textContent = accountAge;
+            }
+        }
+
+        async function loadProfileStats() {
+            if (!currentUser) return;
+            
+            try {
+                // Get resume count
+                const token = localStorage.getItem('authToken');
+                const resumeResponse = await fetch('/resumes', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                let resumeCount = 0;
+                if (resumeResponse.ok) {
+                    const resumeData = await response.json();
+                    if (resumeData.success && resumeData.resumes) {
+                        resumeCount = resumeData.resumes.length;
+                    }
+                }
+                
+                // Get account age (placeholder for now)
+                const accountAge = 1; // This could be calculated from user creation date
+                
+                updateProfileStats(resumeCount, accountAge);
+                
+            } catch (error) {
+                console.error('Error loading profile stats:', error);
+                updateProfileStats(0, 0);
+            }
+        }
+
+        async function loadActivityTimeline() {
+            if (!currentUser) return;
+            
+            try {
+                const token = localStorage.getItem('authToken');
+                const response = await fetch(`/activity-timeline/${currentUser.id}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const activityTimeline = document.getElementById('activity-timeline');
+                
+                if (response.status === 401) {
+                    handleAuthError();
+                    return;
+                }
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.activities && data.activities.length > 0) {
+                        let html = '';
+                        data.activities.forEach(activity => {
+                            const timestamp = new Date(activity.timestamp).toLocaleString();
+                            html += `
+                                <div style="padding: 10px 0; border-bottom: 1px solid #e9ecef;">
+                                    <div style="font-weight: 600; color: #333;">${activity.action}</div>
+                                    <div style="font-size: 12px; color: #666;">${timestamp}</div>
+                                </div>
+                            `;
+                        });
+                        activityTimeline.innerHTML = html;
+                    } else {
+                        activityTimeline.innerHTML = '<p style="text-align: center; margin: 0; color: #666;">No recent activity</p>';
+                    }
+                } else {
+                    // If endpoint doesn't exist, show placeholder
+                    activityTimeline.innerHTML = '<p style="text-align: center; margin: 0; color: #666;">Activity tracking coming soon</p>';
+                }
+            } catch (error) {
+                console.error('Error loading activity timeline:', error);
+                document.getElementById('activity-timeline').innerHTML = '<p style="text-align: center; margin: 0; color: #666;">Error loading activity</p>';
+            }
+        }
+
+        async function loadProfileSettings() {
+            if (!currentUser) return;
+            
+            try {
+                // Load settings from localStorage (in a real app, this would come from the backend)
+                const emailNotifications = localStorage.getItem('emailNotifications') === 'true';
+                const autoSave = localStorage.getItem('autoSave') !== 'false'; // Default to true
+                
+                document.getElementById('email-notifications').checked = emailNotifications;
+                document.getElementById('auto-save').checked = autoSave;
+                
+            } catch (error) {
+                console.error('Error loading profile settings:', error);
+            }
+        }
+
+        async function saveProfileSettings() {
+            if (!currentUser) return;
+            
+            try {
+                const emailNotifications = document.getElementById('email-notifications').checked;
+                const autoSave = document.getElementById('auto-save').checked;
+                
+                // Save settings to localStorage (in a real app, this would go to the backend)
+                localStorage.setItem('emailNotifications', emailNotifications.toString());
+                localStorage.setItem('autoSave', autoSave.toString());
+                
+                // Show success feedback
+                const saveBtn = event.target;
+                const originalText = saveBtn.textContent;
+                saveBtn.textContent = 'Saved!';
+                saveBtn.style.background = '#45a049';
+                
+                setTimeout(() => {
+                    saveBtn.textContent = originalText;
+                    saveBtn.style.background = '#4CAF50';
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Error saving profile settings:', error);
+                alert('Error saving settings. Please try again.');
+            }
+        }
+
+        // Load profile data when profile tab is shown
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('tab') && e.target.textContent.includes('Profile')) {
+                setTimeout(() => {
+                    refreshProfileData();
+                }, 100);
+            }
+        });
+
+        // Export profile data function
+        async function exportProfileData() {
+            if (!currentUser) {
+                alert('Please log in to export your profile data.');
+                return;
+            }
+
+            try {
+                const token = localStorage.getItem('authToken');
+                const response = await fetch(`/export-profile/${currentUser.id}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.status === 401) {
+                    handleAuthError();
+                    return;
+                }
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `interview_simulator_profile_${currentUser.id}.json`; // Suggest a filename
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                    alert('Profile data exported successfully!');
+                } else {
+                    const errorText = await response.text();
+                    console.error('Error exporting profile data:', response.status, errorText);
+                    alert('Failed to export profile data: ' + (response.statusText || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error exporting profile data:', error);
+                alert('Error exporting profile data. Please try again.');
+            }
+        }
+
+        // Placeholder functions for new help/support sections
+        function showProfileHelp() {
+            alert('Profile Help: This section is under construction. Please check back later for more details.');
+        }
+
+        function contactSupport() {
+            alert('Contact Support: This section is under construction. Please check back later for more details.');
+        }
+
+        // Profile data formatting and utilities
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'Unknown date';
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+            } catch (error) {
+                return 'Invalid date';
+            }
+        }
+
+        function validateEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+
+        function validateProfileData() {
+            const name = document.getElementById('profile-name').value.trim();
+            const email = document.getElementById('profile-email').value.trim();
+            
+            if (!name) {
+                alert('Please enter your name');
+                return false;
+            }
+            
+            if (name.length < 2) {
+                alert('Name must be at least 2 characters long');
+                return false;
+            }
+            
+            if (email && !validateEmail(email)) {
+                alert('Please enter a valid email address');
+                return false;
+            }
+            
+            return true;
+        }
+
+        function showProfileSummary() {
+            if (!currentUser) {
+                alert('Please log in to view your profile summary.');
+                return;
+            }
+            
+            const name = document.getElementById('profile-name').value || 'Not set';
+            const email = document.getElementById('profile-email').value || 'Not set';
+            const resumeCount = document.getElementById('resume-count').textContent || '0';
+            const sessionCount = document.getElementById('session-count').textContent || '0';
+            
+            const summary = `
+                <strong>Profile Summary</strong><br><br>
+                <strong>Name:</strong> ${name}<br>
+                <strong>Email:</strong> ${email}<br>
+                <strong>Resumes:</strong> ${resumeCount}<br>
+                <strong>Sessions:</strong> ${sessionCount}<br>
+                <strong>Last Updated:</strong> ${formatDate(new Date().toISOString())}
+            `;
+            
+            alert(summary);
+        }
     </script>
 </body>
 </html> 

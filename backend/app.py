@@ -8,7 +8,7 @@ import uvicorn
 import random
 from typing import List, Optional
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 import PyPDF2
@@ -16,12 +16,13 @@ import io
 import docx
 import hashlib
 import secrets
+import uuid
 
 # Load environment variables
 load_dotenv()
 
 app = FastAPI()
-templates = Jinja2Templates(directory="../frontend")
+templates = Jinja2Templates(directory="frontend")
 
 # Import Azure services
 from azure_db import azure_service
@@ -30,7 +31,10 @@ from user_service import user_service
 # Security
 security = HTTPBearer()
 
-# In-memory session storage (in production, use Redis or database)
+# Token storage in database (more reliable than in-memory)
+# user_sessions = {}  # Commented out - using database instead
+
+# Simple in-memory fallback for when database is not available
 user_sessions = {}
 
 # Initialize AI clients
@@ -205,18 +209,108 @@ def hash_password(password: str) -> str:
 def create_session_token(user_id: str) -> str:
     """Create a session token for a user"""
     token = secrets.token_urlsafe(32)
+    print(f"🔑 Creating session token for user: {user_id}")
+    print(f"🔑 Generated token: {token[:20]}...")
+    
+    # For now, use in-memory storage to prevent authentication issues
+    # TODO: Implement database storage when Azure connection is stable
     user_sessions[token] = {
         "user_id": user_id,
         "created_at": datetime.utcnow().isoformat()
     }
+    print(f"✅ Session token stored in memory for user {user_id}")
+    
+    # Try to also store in database (but don't fail if it doesn't work)
+    try:
+        if user_service.container:
+            token_doc = {
+                "id": str(uuid.uuid4()),
+                "type": "token",
+                "token": token,
+                "user_id": user_id,
+                "created_at": datetime.utcnow().isoformat(),
+                "expires_at": (datetime.utcnow() + timedelta(hours=24)).isoformat(),  # 24 hour expiry
+                "is_active": True
+            }
+            
+            print(f"💾 Also storing token in database...")
+            # Save to Cosmos DB using the same container as users
+            user_service.container.create_item(body=token_doc)
+            print(f"✅ Session token also stored in database for user {user_id}")
+        
+    except Exception as e:
+        print(f"⚠️  Warning: Could not store token in database: {e}")
+        print(f"✅ Token is still valid in memory")
+    
     return token
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Get current user from session token"""
     token = credentials.credentials
-    if token not in user_sessions:
-        raise HTTPException(status_code=401, detail="Invalid session token")
-    return user_sessions[token]["user_id"]
+    print(f"🔐 Validating token: {token[:20]}...")
+    
+    # First check in-memory storage (primary method for now)
+    if token in user_sessions:
+        user_id = user_sessions[token]["user_id"]
+        print(f"✅ Token found in memory for user: {user_id}")
+        return user_id
+    
+    # If not in memory, try database (but don't fail if it doesn't work)
+    try:
+        if user_service.container:
+            print(f"🔍 Checking database for token...")
+            query = "SELECT * FROM c WHERE c.token = @token AND c.type = 'token' AND c.is_active = true"
+            parameters = [{"name": "@token", "value": token}]
+            
+            tokens = list(user_service.container.query_items(
+                query=query,
+                parameters=parameters,
+                enable_cross_partition_query=True
+            ))
+            
+            if tokens and len(tokens) > 0:
+                token_data = tokens[0]
+                user_id = token_data["user_id"]
+                print(f"✅ Token found in database for user: {user_id}")
+                
+                # Also store in memory for future use
+                user_sessions[token] = {
+                    "user_id": user_id,
+                    "created_at": token_data.get("created_at", datetime.utcnow().isoformat())
+                }
+                
+                return user_id
+        
+    except Exception as e:
+        print(f"⚠️  Warning: Database check failed: {e}")
+        print(f"✅ Continuing with memory-only validation")
+    
+    # Token not found anywhere
+    print(f"❌ Token not found in memory or database")
+    raise HTTPException(status_code=401, detail="Invalid session token")
+
+def cleanup_expired_tokens():
+    """Clean up expired tokens from the database"""
+    try:
+        current_time = datetime.utcnow().isoformat()
+        query = "SELECT * FROM c WHERE c.type = 'token' AND c.expires_at < @current_time AND c.is_active = true"
+        parameters = [{"name": "@current_time", "value": current_time}]
+        
+        expired_tokens = list(user_service.container.query_items(
+            query=query,
+            parameters=parameters,
+            enable_cross_partition_query=True
+        ))
+        
+        for token_data in expired_tokens:
+            token_data["is_active"] = False
+            user_service.container.replace_item(item=token_data["id"], body=token_data)
+        
+        if expired_tokens:
+            print(f"✅ Cleaned up {len(expired_tokens)} expired tokens")
+            
+    except Exception as e:
+        print(f"❌ Error cleaning up expired tokens: {e}")
 
 def initialize_azure_services():
     """Initialize Azure services on startup"""
@@ -494,6 +588,10 @@ async def startup_event():
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
+
+@app.get("/app", response_class=HTMLResponse)
+async def read_app(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/get-question")
@@ -993,11 +1091,190 @@ async def login_user(user_data: UserLogin):
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/logout")
-async def logout_user(current_user: str = Depends(get_current_user)):
+async def logout_user(
+    request: Request,
+    current_user: str = Depends(get_current_user)
+):
     """Logout user"""
-    # In a real app, you'd invalidate the token
-    # For now, we'll just return success
-    return {"success": True, "message": "Logout successful"}
+    try:
+        # Get the token from the request
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header[7:]  # Remove "Bearer " prefix
+            
+            # Remove from memory
+            if token in user_sessions:
+                del user_sessions[token]
+                print(f"✅ Token removed from memory for user {current_user}")
+            
+            # Try to also invalidate in database (but don't fail if it doesn't work)
+            try:
+                if user_service.container:
+                    query = "SELECT * FROM c WHERE c.token = @token AND c.type = 'token'"
+                    parameters = [{"name": "@token", "value": token}]
+                    
+                    tokens = list(user_service.container.query_items(
+                        query=query,
+                        parameters=parameters,
+                        enable_cross_partition_query=True
+                    ))
+                    
+                    if tokens and len(tokens) > 0:
+                        token_data = tokens[0]
+                        token_data["is_active"] = False
+                        user_service.container.replace_item(item=token_data["id"], body=token_data)
+                        print(f"✅ Token also invalidated in database for user {current_user}")
+            except Exception as e:
+                print(f"⚠️  Warning: Could not invalidate token in database: {e}")
+        
+        return {"success": True, "message": "Logout successful"}
+        
+    except Exception as e:
+        print(f"❌ Error during logout: {e}")
+        return {"success": True, "message": "Logout successful"}
+
+@app.post("/refresh-token")
+async def refresh_token(
+    request: Request,
+    current_user: str = Depends(get_current_user)
+):
+    """Refresh the current user's token to extend the session"""
+    try:
+        # Get the current token from the request
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            raise HTTPException(status_code=400, detail="No valid token provided")
+        
+        current_token = auth_header[7:]  # Remove "Bearer " prefix
+        
+        # Create a new token
+        new_token = create_session_token(current_user)
+        
+        # Remove the old token from memory
+        if current_token in user_sessions:
+            del user_sessions[current_token]
+        
+        # Try to also invalidate the old token in database (but don't fail if it doesn't work)
+        try:
+            if user_service.container:
+                query = "SELECT * FROM c WHERE c.token = @token AND c.type = 'token'"
+                parameters = [{"name": "@token", "value": current_token}]
+                
+                tokens = list(user_service.container.query_items(
+                    query=query,
+                    parameters=parameters,
+                    enable_cross_partition_query=True
+                ))
+                
+                if tokens and len(tokens) > 0:
+                    token_data = tokens[0]
+                    token_data["is_active"] = False
+                    user_service.container.replace_item(item=token_data["id"], body=token_data)
+                    print(f"✅ Old token invalidated in database")
+        except Exception as e:
+            print(f"⚠️  Warning: Could not invalidate old token in database: {e}")
+        
+        return {
+            "success": True,
+            "message": "Token refreshed successfully",
+            "new_token": new_token
+        }
+        
+    except Exception as e:
+        print(f"❌ Error refreshing token: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/validate-token")
+async def validate_token(token: str):
+    """Validate a token without requiring authentication"""
+    try:
+        # First check in-memory storage
+        if token in user_sessions:
+            return {
+                "valid": True,
+                "user_id": user_sessions[token]["user_id"],
+                "created_at": user_sessions[token]["created_at"],
+                "storage": "memory"
+            }
+        
+        # If not in memory, try database (but don't fail if it doesn't work)
+        try:
+            if user_service.container:
+                query = "SELECT * FROM c WHERE c.token = @token AND c.type = 'token' AND c.is_active = true"
+                parameters = [{"name": "@token", "value": token}]
+                
+                tokens = list(user_service.container.query_items(
+                    query=query,
+                    parameters=parameters,
+                    enable_cross_partition_query=True
+                ))
+                
+                if tokens and len(tokens) > 0:
+                    token_data = tokens[0]
+                    
+                    # Check if token is expired
+                    expires_at = datetime.fromisoformat(token_data["expires_at"])
+                    if datetime.utcnow() > expires_at:
+                        # Token expired, deactivate it
+                        token_data["is_active"] = False
+                        user_service.container.replace_item(item=token_data["id"], body=token_data)
+                        return {
+                            "valid": False,
+                            "message": "Token expired"
+                        }
+                    
+                    return {
+                        "valid": True,
+                        "user_id": token_data["user_id"],
+                        "expires_at": token_data["expires_at"],
+                        "storage": "database"
+                    }
+        except Exception as e:
+            print(f"⚠️  Warning: Database validation failed: {e}")
+        
+        return {
+            "valid": False,
+            "message": "Invalid token"
+        }
+            
+    except Exception as e:
+        print(f"❌ Error validating token: {e}")
+        return {
+            "valid": False,
+            "message": "Error validating token"
+        }
+
+@app.get("/session-info")
+async def get_session_info():
+    """Get information about current sessions (for debugging)"""
+    try:
+        return {
+            "success": True,
+            "memory_sessions": len(user_sessions),
+            "session_details": [
+                {
+                    "token_preview": token[:20] + "...",
+                    "user_id": data["user_id"],
+                    "created_at": data["created_at"]
+                }
+                for token, data in user_sessions.items()
+            ]
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+@app.get("/test-auth")
+async def test_auth(current_user: str = Depends(get_current_user)):
+    """Test endpoint to verify authentication is working"""
+    return {
+        "success": True,
+        "message": "Authentication working!",
+        "user_id": current_user,
+        "timestamp": datetime.utcnow().isoformat()
+    }
 
 # Resume Management Endpoints
 @app.post("/upload-resume")
@@ -1007,14 +1284,20 @@ async def upload_resume(
 ):
     """Upload a resume file"""
     try:
+        print(f"✅ Resume upload started for user: {current_user}")
+        print(f"📁 File: {resume.filename}, Size: {resume.size}, Type: {resume.content_type}")
+        
         # Read file content
         file_content = await resume.read()
+        print(f"📖 File content read successfully, {len(file_content)} bytes")
         
         # Upload file to Azure Blob Storage
         file_url = azure_service.upload_resume_file(file_content, resume.filename)
+        print(f"☁️ File uploaded to Azure Storage: {file_url}")
         
         # Extract text from file
         extracted_text = extract_text_from_file(file_content, resume.content_type)
+        print(f"📝 Text extracted: {len(extracted_text)} characters")
         
         # Save resume metadata to Cosmos DB
         resume_id = azure_service.save_resume_metadata(
@@ -1024,6 +1307,7 @@ async def upload_resume(
             file_size=len(file_content),
             extracted_text=extracted_text
         )
+        print(f"💾 Resume metadata saved with ID: {resume_id}")
         
         return {
             "success": True,
@@ -1033,6 +1317,9 @@ async def upload_resume(
         }
         
     except Exception as e:
+        print(f"❌ Error uploading resume: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/resumes")
@@ -1102,23 +1389,204 @@ async def search_resumes(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@app.get("/session-history/{user_id}")
+async def get_session_history(
+    user_id: str,
+    current_user: str = Depends(get_current_user)
+):
+    """Get session history for a user"""
+    try:
+        # Ensure users can only access their own data
+        if user_id != current_user:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # For now, return a basic count. In a real app, you'd query a sessions table
+        # This is a placeholder that can be enhanced later
+        return {
+            "success": True,
+            "session_count": 0,  # Placeholder - can be enhanced with actual session tracking
+            "message": "Session history tracking coming soon"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/export-profile/{user_id}")
+async def export_profile(
+    user_id: str,
+    current_user: str = Depends(get_current_user)
+):
+    """Export user profile data"""
+    try:
+        # Ensure users can only access their own data
+        if user_id != current_user:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Get user data
+        user = user_service.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Get user resumes
+        resumes = azure_service.get_user_resumes(user_id)
+        
+        # Prepare export data
+        export_data = {
+            "user_info": {
+                "id": user.get("id"),
+                "email": user.get("email"),
+                "name": user.get("name"),
+                "created_at": user.get("created_at"),
+                "updated_at": user.get("updated_at")
+            },
+            "resumes": resumes,
+            "export_date": datetime.utcnow().isoformat(),
+            "export_version": "1.0"
+        }
+        
+        # Convert to JSON and return as downloadable file
+        import json
+        from fastapi.responses import Response
+        
+        json_content = json.dumps(export_data, indent=2, default=str)
+        return Response(
+            content=json_content,
+            media_type="application/json",
+            headers={"Content-Disposition": f"attachment; filename=profile_{user_id}.json"}
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/activity-timeline/{user_id}")
+async def get_activity_timeline(
+    user_id: str,
+    current_user: str = Depends(get_current_user)
+):
+    """Get user activity timeline"""
+    try:
+        # Ensure users can only access their own data
+        if user_id != current_user:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # For now, return a placeholder. In a real app, you'd query an activity log table
+        # This can be enhanced later to track actual user actions
+        activities = [
+            {
+                "action": "Profile viewed",
+                "timestamp": datetime.utcnow().isoformat(),
+                "type": "profile_view"
+            }
+        ]
+        
+        return {
+            "success": True,
+            "activities": activities,
+            "message": "Activity tracking coming soon"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# User Management Endpoints
+@app.get("/users/{user_id}")
+async def get_user(
+    user_id: str,
+    current_user: str = Depends(get_current_user)
+):
+    """Get user information"""
+    try:
+        user = user_service.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Ensure users can only access their own data
+        if user["id"] != current_user:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        return {
+            "success": True,
+            "user": {
+                "id": user["id"],
+                "email": user["email"],
+                "name": user.get("name", ""),
+                "created_at": user.get("created_at", ""),
+                "updated_at": user.get("updated_at", "")
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.put("/users/{user_id}")
+async def update_user(
+    user_id: str,
+    updates: dict,
+    current_user: str = Depends(get_current_user)
+):
+    """Update user information"""
+    try:
+        # Ensure users can only update their own data
+        if user_id != current_user:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Only allow updating certain fields
+        allowed_updates = {}
+        if "name" in updates:
+            allowed_updates["name"] = updates["name"]
+        
+        if not allowed_updates:
+            raise HTTPException(status_code=400, detail="No valid fields to update")
+        
+        success = user_service.update_user(user_id, allowed_updates)
+        if not success:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return {
+            "success": True,
+            "message": "User updated successfully"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @app.get("/health")
 async def health_check():
-    """Health check endpoint to verify AI availability"""
-    ai_service = "none"
-    if GEMINI_AVAILABLE:
-        ai_service = "gemini"
-    elif OPENAI_AVAILABLE:
-        ai_service = "openai"
-    
-    return {
-        "status": "healthy",
-        "ai_available": AI_AVAILABLE,
-        "ai_service": ai_service,
-        "gemini_available": GEMINI_AVAILABLE,
-        "openai_available": OPENAI_AVAILABLE,
-        "subjects": list(SUBJECTS.keys())
-    }
+    """Health check endpoint to verify AI availability and clean up expired tokens"""
+    try:
+        # Clean up expired tokens (only if database is available)
+        try:
+            if user_service.container:
+                cleanup_expired_tokens()
+        except Exception as e:
+            print(f"⚠️  Warning: Token cleanup failed: {e}")
+        
+        ai_service = "none"
+        if GEMINI_AVAILABLE:
+            ai_service = "gemini"
+        elif OPENAI_AVAILABLE:
+            ai_service = "openai"
+        
+        return {
+            "status": "healthy",
+            "ai_available": AI_AVAILABLE,
+            "ai_service": ai_service,
+            "gemini_available": GEMINI_AVAILABLE,
+            "openai_available": OPENAI_AVAILABLE,
+            "subjects": list(SUBJECTS.keys()),
+            "auth_system": "memory-primary-with-database-fallback",
+            "token_cleanup": "conditional",
+            "active_sessions": len(user_sessions)
+        }
+        
+    except Exception as e:
+        print(f"❌ Error in health check: {e}")
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "auth_system": "memory-only",
+            "active_sessions": len(user_sessions) if 'user_sessions' in globals() else 0
+        }
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000) 
